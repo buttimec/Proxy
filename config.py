@@ -2,12 +2,12 @@ import enum
 
 app_config = {
     'MAX_REQUEST_LEN': 1024 * 6,
-    'CONNECTION_TIMEOUT': 0.2,  # 100ms
+    'CONNECTION_TIMEOUT': 0.05,  # 100ms
     'MAX_RECV_TRIES': 10,
     'HOST_NAME': 'localhost',
     'BIND_PORT': 12345,
     'CMD_PORT': 23456,
-    'MODE': 'http',     # 'http'/'https'
+    'MODE': 'https',     # 'http'/'https'
     'LOGGING': True,
     'LOG_LEVEL': 'info',  # 'info'/'error'/'debug'
     'LOG_MSGS': 40  # number of bytes of msgs sent/recv content to log; -1=all, 0=none or positive number of bytes

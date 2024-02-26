@@ -4,7 +4,10 @@ import threading
 import signal
 from typing import Any, Tuple
 import logging
+
+import crypto
 from config import app_config, Commands
+from crypto import load_ca
 from ctrl import CMD_VALUES
 import chardet
 
@@ -51,18 +54,11 @@ class Server:
         self.max_recv_tries = config.get('MAX_RECV_TRIES', DEFAULT_MAX_RECV_TRIES)
         self.sock_timeout = config.get('CONNECTION_TIMEOUT', DEFAULT_SOCK_TIMEOUT)
         self.https_mode = config.get('MODE', 'https').lower() == 'https'
+        self.ca_key, self.ca_cert = load_ca()
 
         self.__clients = {}     # key socket name, value shutdown flag
         self.__threads = {}
-        self.__black_list = {'rte.ie'}
-
-        if self.https_mode:
-            # CLIENT_AUTH: context may be used to authenticate web clients i.e. it will be used to create server-side sockets
-            self.server_context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
-            self.server_context.load_default_certs()
-            self.server_context.load_cert_chain(certfile="server.crt", keyfile="server.key")
-            # self.server_context.load_cert_chain(certfile="chain.crt", keyfile="server.key")
-            # self.server_context.load_cert_chain(certfile="ca.crt", keyfile="ca.key")
+        self.__black_list = {}
 
         # SERVER_AUTH: context may be used to authenticate web servers i.e. it will be used to create client-side sockets
         self.client_context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
@@ -168,22 +164,33 @@ class Server:
             target_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
             # target_socket is a client socket to the target
-            target_socket = self.socket_wrap(
-                target_socket, request, server_side=False)
+            target_socket = self.client_context.wrap_socket(
+                target_socket, server_hostname=request.server)
 
             target_socket.connect(request.address)
             self.set_socket_timeout(target_socket)
 
             initial_msg = None  # initial msg to forward to target
             if request.is_connect:
+                do_https = self.https_mode and request.is_https
+                mitm_cert, mitm_key, mitm_context = (None, None, None) #Man In The Middle https://docs.mitmproxy.org/stable/concepts-howmitmproxyworks/
+
+                if do_https:
+                    mitm_cert, mitm_key, password = crypto.generate_cert(
+                        request.address, self.ca_key, self.ca_cert
+                    )
+                    mitm_context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+                    mitm_context.load_cert_chain(
+                        certfile=mitm_cert, keyfile=mitm_key, password=password
+                    )
+
                 # Send a successful response to the client
                 response = "HTTP/1.1 200 Connection established" + (HEADER_SEPARATOR * 2)
                 self.send(client_socket, response, 'client')
                 self.info(client_name, f'Connection established to {client_socket.getpeername()}')
+                if do_https:
+                    client_socket = mitm_context.wrap_socket(client_socket, server_side=True)
 
-                # client_socket is a server socket to the proxy client
-                client_socket = self.socket_wrap(
-                    client_socket, request, server_side=True)
 
             else:
                 initial_msg = request.raw

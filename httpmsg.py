@@ -73,3 +73,7 @@ class HttpMsg:
     @property
     def port(self) -> int:
         return self.address[1]
+
+    @property
+    def is_https(self) -> bool:
+        return self.port == HTTPS_PORT
