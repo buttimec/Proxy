@@ -10,7 +10,8 @@ app_config = {
     'MODE': 'https',     # 'http'/'https'
     'LOGGING': True,
     'LOG_LEVEL': 'info',  # 'info'/'error'/'debug'
-    'LOG_MSGS': 40  # number of bytes of msgs sent/recv content to log; -1=all, 0=none or positive number of bytes
+    'LOG_MSGS': 40,  # number of bytes of msgs sent/recv content to log; -1=all, 0=none or positive number of bytes
+    'CACHE_MSGS': True
 }
 
 
@@ -22,6 +23,7 @@ class Commands(enum.StrEnum):
     BLACKLIST = 'blacklist'
     NEW_BLACK = 'new_black'
     DEL_BLACK = 'del_black'
+    TOGGLE_CACHE = 'CACHE'
 
     @staticmethod
     def values():
